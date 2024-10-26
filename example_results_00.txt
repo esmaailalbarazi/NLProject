@@ -1,0 +1,71 @@
+                                              ROUGE-1   ROUGE-2   ROUGE-L  \
+num_sentences_just_sentences_no_weight       0.373272  0.361111  0.290323   
+percentage_txt_just_sentences_no_weight      0.458515  0.442982  0.379913   
+num_sentences_just_sentences_no_filter       0.373272  0.361111  0.290323   
+percentage_txt_just_sentences_no_filter      0.458515  0.442982  0.379913   
+num_sentences_just_sentences_yes_weight      0.380734  0.368664  0.293578   
+percentage_txt_just_sentences_yes_weight     0.458515  0.442982  0.305677   
+num_sentences_just_sentences_yes_filter      0.117333  0.112601  0.117333   
+percentage_txt_just_sentences_yes_filter     0.117333  0.112601  0.117333   
+num_sentences_sentences_n_words_no_weight    0.380734  0.368664  0.220183   
+percentage_txt_sentences_n_words_no_weight   0.465217  0.449782  0.247826   
+num_sentences_sentences_n_words_no_filter    0.380734  0.368664  0.220183   
+percentage_txt_sentences_n_words_no_filter   0.465217  0.449782  0.247826   
+num_sentences_sentences_n_words_yes_weight   0.380734  0.373272  0.293578   
+percentage_txt_sentences_n_words_yes_weight  0.465217  0.454148  0.282609   
+num_sentences_sentences_n_words_yes_filter   0.117333  0.112601  0.117333   
+percentage_txt_sentences_n_words_yes_filter  0.117333  0.112601  0.117333   
+
+                                                     BLEU  BERT Precision  \
+num_sentences_just_sentences_no_weight       3.270796e-02        0.946494   
+percentage_txt_just_sentences_no_weight      9.021360e-02        0.949191   
+num_sentences_just_sentences_no_filter       3.270796e-02        0.946494   
+percentage_txt_just_sentences_no_filter      9.021360e-02        0.949191   
+num_sentences_just_sentences_yes_weight      3.648205e-02        0.958143   
+percentage_txt_just_sentences_yes_weight     9.021360e-02        0.955458   
+num_sentences_just_sentences_yes_filter      4.018155e-07        0.955163   
+percentage_txt_just_sentences_yes_filter     4.018155e-07        0.955163   
+num_sentences_sentences_n_words_no_weight    3.648205e-02        0.950698   
+percentage_txt_sentences_n_words_no_weight   9.626471e-02        0.958716   
+num_sentences_sentences_n_words_no_filter    3.648205e-02        0.950698   
+percentage_txt_sentences_n_words_no_filter   9.626471e-02        0.958716   
+num_sentences_sentences_n_words_yes_weight   3.684665e-02        0.949479   
+percentage_txt_sentences_n_words_yes_weight  9.700890e-02        0.956937   
+num_sentences_sentences_n_words_yes_filter   4.018155e-07        0.955163   
+percentage_txt_sentences_n_words_yes_filter  4.018155e-07        0.955163   
+
+                                             BERT Recall   BERT F1  \
+num_sentences_just_sentences_no_weight          0.857583  0.899848   
+percentage_txt_just_sentences_no_weight         0.866593  0.906013   
+num_sentences_just_sentences_no_filter          0.857583  0.899848   
+percentage_txt_just_sentences_no_filter         0.866593  0.906013   
+num_sentences_just_sentences_yes_weight         0.865889  0.909683   
+percentage_txt_just_sentences_yes_weight        0.871181  0.911375   
+num_sentences_just_sentences_yes_filter         0.813711  0.878781   
+percentage_txt_just_sentences_yes_filter        0.813711  0.878781   
+num_sentences_sentences_n_words_no_weight       0.864489  0.905547   
+percentage_txt_sentences_n_words_no_weight      0.876140  0.915570   
+num_sentences_sentences_n_words_no_filter       0.864489  0.905547   
+percentage_txt_sentences_n_words_no_filter      0.876140  0.915570   
+num_sentences_sentences_n_words_yes_weight      0.864886  0.905210   
+percentage_txt_sentences_n_words_yes_weight     0.876464  0.914934   
+num_sentences_sentences_n_words_yes_filter      0.813711  0.878781   
+percentage_txt_sentences_n_words_yes_filter     0.813711  0.878781   
+
+                                             Cosine Similarity  Spent Time  
+num_sentences_just_sentences_no_weight                0.668013        0.02  
+percentage_txt_just_sentences_no_weight               0.740661        0.01  
+num_sentences_just_sentences_no_filter                0.668013        0.00  
+percentage_txt_just_sentences_no_filter               0.740661        0.01  
+num_sentences_just_sentences_yes_weight               0.707846       92.98  
+percentage_txt_just_sentences_yes_weight              0.734162       75.15  
+num_sentences_just_sentences_yes_filter               0.431853      150.68  
+percentage_txt_just_sentences_yes_filter              0.431853      148.75  
+num_sentences_sentences_n_words_no_weight             0.707846        0.04  
+percentage_txt_sentences_n_words_no_weight            0.765118        0.01  
+num_sentences_sentences_n_words_no_filter             0.707846        0.01  
+percentage_txt_sentences_n_words_no_filter            0.765118        0.01  
+num_sentences_sentences_n_words_yes_weight            0.707846       73.47  
+percentage_txt_sentences_n_words_yes_weight           0.765118       74.39  
+num_sentences_sentences_n_words_yes_filter            0.431853      148.51  
+percentage_txt_sentences_n_words_yes_filter           0.431853      147.75 
