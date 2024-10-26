@@ -2,27 +2,32 @@ import requests # type: ignore
 from sklearn.feature_extraction.text import TfidfVectorizer # type: ignore
 from sklearn.metrics.pairwise import cosine_similarity # type: ignore
 import networkx as nx # type: ignore
-import re
+import pandas as pd # type: ignore
 import math
+import re
+import os
+import time
 import requests # type: ignore
 import nltk # type: ignore
 from nltk.corpus import stopwords # type: ignore
 from nltk.tokenize import word_tokenize # type: ignore
-import time
+# Metrics
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
+from bert_score import score as bert_score
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from rouge_score import rouge_scorer
 
 
 # ----------------------------------------------- #
 # ------------------ TEXT RANK ------------------ #
 # ----------------------------------------------- #
 
-t1 = time.time()
-nltk.download('punkt', quiet=True)
-nltk.download('stopwords', quiet=True)
-nltk.download('all', quiet=True)
-t2 = time.time()
-
 # -------------------------------------------------
 # BASIC SETUP
+
+# Supress warnings from Hugging Face Transformers
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 
 # Function to extract keywords from text
 def extract_keywords(sentence):
@@ -260,14 +265,14 @@ Despite its advantages, AI poses several ethical and societal challenges. Concer
 AI continues to evolve, pushing the boundaries of what machines can achieve. Researchers are working on making AI systems more robust, explainable, and aligned with human values to ensure that AI benefits society as a whole."""
 
 # Kind of summary based on sentence/word importance
-kind_of_summ = {0: 'just_sentences', 1: 'sentences_n_words'}[1]
+kind_summ = {0: 'just_sentences', 1: 'sentences_n_words'}[1]
 
 # Add or not information from BabelNet
 add_kg_info = {0: 'no', 1: 'yes'}[1]
 # BabelNet importance
 wiki_weight = 2.5
 # Weight high or filter actively concepts?
-wiki_usage = {0: 'weight', 1: 'filter'}[1]
+wiki_usage = {0: 'weight', 1: 'filter'}[0]
 
 # Results based one what?
 counting = {0: 'num_sentences', 1: 'percentage_txt'}[0]
@@ -275,52 +280,101 @@ counting = {0: 'num_sentences', 1: 'percentage_txt'}[0]
 num_sentences = 3
 percentage_txt = 0.2
 
+if add_kg_info == 'yes':
+    t1 = time.time()
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
+    nltk.download('all', quiet=True)
+    t2 = time.time()
+else:
+    pass
+
 
 # ------------------------------------------------
 # GENERATE SUMMARY ITSELF
 
 # For each approach, generate the summary
 if wiki_usage == 'weight':
-    summary = summ_1(text, num_sentences, percentage_txt, counting, kind_of_summ, add_kg_info, wiki_weight)
+    summary, t = summ_1(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info, wiki_weight)
 else:
-    summary = summ_2(text, num_sentences, percentage_txt, counting, kind_of_summ, add_kg_info)
+    summary, t = summ_2(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info)
 
 # Print the summary
+print(f"SUMMARY SCHEMA: {counting}, SENTENCES/WORDS: {kind_summ}, ADD KG INFO: {add_kg_info}, KG USAGE APPROACH: {wiki_usage}")
+
+print("Summary:")
 print(summary)
 
+print("Spent time:")
+if add_kg_info == 'yes':
+   print(round(t + t2 - t1, 2))
+else:
+    print(round(t, 2))
+print("-" * 80)
 
 
+# ------------------------------------------------
+# EVALUATION OF THE SUMMARIZATION
 
-counting_options = ['num_sentences', 'percentage_txt']
-num_sentences = 3
-percentage_txt = 0.2
+# Function to compute ROUGE scores
+def compute_rouge(reference, generated):
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+    scores = scorer.score(reference, generated)
+    return scores
 
-kind_summ = ['only_sentences', 'sentences_n_words']
+# Function to compute BLEU score
+def compute_bleu(reference, generated):
+    reference_tokens = [reference.split()]
+    generated_tokens = generated.split()
+    smooth = SmoothingFunction().method1
+    score = sentence_bleu(reference_tokens, generated_tokens, smoothing_function=smooth)
+    return score
 
-add_kg = ['no', 'yes']
+# Function to compute BERTScore
+def compute_bert_score(reference, generated):
+    P, R, F1 = bert_score([generated], [reference], lang="en")
+    return {"Precision": P.mean().item(), "Recall": R.mean().item(), "F1": F1.mean().item()}
 
-wiki_usage = ['weight', 'filter']
-weight_factor = 2
+# Function to compute cosine similarity with TF-IDF
+def compute_tfidf_cosine(reference, generated):
+    vectorizer = TfidfVectorizer()
+    tfidf_matrix = vectorizer.fit_transform([reference, generated])
+    cos_similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
+    return cos_similarity[0][0]
 
-# Loop through all parameter combinations
-for counting in counting_options:
-    for add in add_kg:
-        for kind in kind_summ:
-            for usage in wiki_usage:
-                # Choose summarization method based on user preference
-                if wiki_usage == 'weight':
-                    summary, t = summ_1(text, num_sentences, percentage_txt, counting, kind, add, weight_factor)
-                else:
-                    summary, t = summ_2(text, num_sentences, percentage_txt, counting, kind, add)
-                
-                print(f"SUMMARY SCHEMA: {counting}, SENTENCES/WORDS: {kind}, ADD KG INFO: {add}, KG USAGE APPROACH: {usage}")
+# Function to evaluate generated summaries against the original text
+def evaluate_summaries(original_text, generated_summaries):
+    results = []
+    for i, gen in enumerate(generated_summaries):
+        # Comparing each generated summary against the original full text
+        rouge = compute_rouge(original_text, gen)
+        bleu = compute_bleu(original_text, gen)
+        bert = compute_bert_score(original_text, gen)
+        cosine_sim = compute_tfidf_cosine(original_text, gen)
+        
+        # Collecting the metrics in the results list
+        results.append({
+            "Summary Index": i,
+            "ROUGE-1": rouge['rouge1'].fmeasure,
+            "ROUGE-2": rouge['rouge2'].fmeasure,
+            "ROUGE-L": rouge['rougeL'].fmeasure,
+            "BLEU": bleu,
+            "BERT Precision": bert['Precision'],
+            "BERT Recall": bert['Recall'],
+            "BERT F1": bert['F1'],
+            "Cosine Similarity": cosine_sim
+        })
+    
+    # Converting results to a DataFrame for easy visualization
+    return pd.DataFrame(results)
 
-                print("Summary:")
-                print(summary)
 
-                print("Spent time:")
-                if add == 'yes':
-                   print(round(t + t2 - t1, 2))
-                else:
-                    print(round(t, 2))
-                print("-" * 80)
+# Run evaluation
+results_df = evaluate_summaries(text, [summary])
+
+# Show all rows in a pandas DataFrame
+pd.set_option('display.max_rows', None)
+# Show all columns in a pandas DataFrame
+pd.set_option('display.max_columns', None)
+# Then print your DataFrame
+print(results_df.T)
