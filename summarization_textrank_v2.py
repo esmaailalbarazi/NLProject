@@ -3,6 +3,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer # type: ignore
 from sklearn.metrics.pairwise import cosine_similarity # type: ignore
 import networkx as nx # type: ignore
 import pandas as pd # type: ignore
+import numpy as np # type: ignore
+import matplotlib.pyplot as plt # type: ignore
 import math
 import re
 import os
@@ -95,6 +97,9 @@ def summ_1(text,
     sentences = re.split(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?)\s', text)
     total_sentences = len(sentences)
 
+    # Calculate the number of words per sentence
+    word_counts_per_sentence = [len(sentence.split()) for sentence in sentences]
+
     # Define the size of the summary
     if counting == 'num_sentences':
         num_sentences = min(num_sentences, total_sentences)
@@ -111,12 +116,12 @@ def summ_1(text,
     nx_graph = nx.from_numpy_array(similarity_matrix)
     sentence_scores = nx.pagerank(nx_graph)
 
+    # Initialize Wikidata importance dictionary
+    wikidata_importance = {}  # Initialize here
+
     # Only calculate Wikidata scores if requested
     if add_wikidata_information == 'yes':
 
-        # Initialize Wikidata importance dictionary
-        wikidata_importance = {}
-        
         # Ensure nltk packages are downloaded
         nltk.download('punkt', quiet=True)
         nltk.download('stopwords', quiet=True)
@@ -127,7 +132,7 @@ def summ_1(text,
         for i, concepts in sentence_concepts.items():
             wikidata_score = len(concepts) * wikidata_weight_factor
             wikidata_importance[i] = wikidata_score
-        
+
     # Normalize sentence_scores and wikidata_importance if KG info is included
     if add_wikidata_information == 'yes':
         max_sent_score = max(sentence_scores.values())
@@ -168,7 +173,7 @@ def summ_1(text,
 
     final_time = time.time()
 
-    return summary, (final_time - start_time)
+    return summary, (final_time - start_time), wikidata_importance, word_counts_per_sentence
 
 
 # Summarization by "KG filtering" when it is used
@@ -311,9 +316,9 @@ all_results = pd.DataFrame()
 
 # Iterate over all possible combinations of options
 for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
+    kind_summ_options.values(),
     add_kg_info_options.values(),
     wiki_usage_options.values(),
-    kind_summ_options.values(),
     counting_options.values()
 ):
     # Check if we need to add KG info and download resources if required
@@ -328,7 +333,7 @@ for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
 
     # Generate the summary based on current configuration
     if wiki_usage == 'weight':
-        summary, t = summ_1(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info, wiki_weight)
+        summary, t, c1, c2 = summ_1(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info, wiki_weight)
     else:
         summary, t = summ_2(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info)
 
