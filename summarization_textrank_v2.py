@@ -373,3 +373,22 @@ pd.set_option('display.max_columns', None)
 
 # Print final transposed DataFrame
 print(results_df)
+
+
+# ------------------------------------------------
+# EXTRA: EXPLORATORY ANALYSIS
+
+# Calculate corr between KG weight per sentence and the number of words in each
+new_c1 = np.array(list(c1.values())) / wiki_weight
+correlation  = np.corrcoef(list(new_c1), c2)
+print(correlation)
+
+# Criar o scatter plot
+plt.scatter(new_c1, c2, color='blue', alpha=0.7)
+plt.xlabel("KG given weight")
+plt.ylabel("Number of words")
+plt.title("Relation 'Size - KG importance'")
+
+# Plotar gráfico
+plt.tight_layout()
+plt.show()
