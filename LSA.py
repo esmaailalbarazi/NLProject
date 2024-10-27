@@ -1,25 +1,28 @@
-import nltk
-from nltk.corpus import stopwords # type: ignore
-from nltk.tokenize import word_tokenize # type: ignore
-import re
-from sklearn.feature_extraction.text import TfidfVectorizer
+import requests # type: ignore
+from sklearn.feature_extraction.text import TfidfVectorizer # type: ignore
 from sklearn.decomposition import TruncatedSVD
-import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity # type: ignore
 import networkx as nx # type: ignore
+import numpy as np
 import pandas as pd # type: ignore
 import math
+import re
 import os
 import time
+import itertools
 import requests # type: ignore
+import nltk # type: ignore
+import logging
+from nltk.corpus import stopwords # type: ignore
+from nltk.tokenize import word_tokenize # type: ignore
 # Metrics
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
-from bert_score import score as bert_score
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from rouge_score import rouge_scorer
+from sklearn.metrics.pairwise import cosine_similarity # type: ignore
+from sklearn.feature_extraction.text import TfidfVectorizer # type: ignore
+from bert_score import score as bert_score # type: ignore
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction # type: ignore
+from rouge_score import rouge_scorer # type: ignore
 import transformers
 transformers.logging.set_verbosity_error()
- 
 
 # Download necessary NLTK data files
 nltk.download('punkt', quiet=True)
@@ -34,6 +37,8 @@ nltk.download('stopwords', quiet=True)
 
 # Supress warnings from Hugging Face Transformers
 os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+# Suppress transformers library warnings
+logging.getLogger("transformers").setLevel(logging.ERROR)
 
 # Function to extract keywords from text
 def extract_keywords(sentence):
@@ -114,6 +119,7 @@ def summ_1(text,
     lsa_matrix = svd_model.fit_transform(tfidf)
     # Calculate sentence importance by summing the components
     sentence_scores = np.sum(lsa_matrix, axis=1)
+
     # Only calculate Wikidata scores if requested
     if add_wikidata_information == 'yes':
 
@@ -135,7 +141,7 @@ def summ_1(text,
     if add_wikidata_information == 'yes':
         max_sent_score = max(sentence_scores)
         min_sent_score = min(sentence_scores)
-        norm_sent_scores = [(score - min_sent_score) / (max_sent_score - min_sent_score) for score in sentence_scores]
+        norm_sent_scores = (sentence_scores - min_sent_score) / (max_sent_score - min_sent_score)
 
         
         max_wiki_score = max(wikidata_importance.values(), default=1)  # Avoid division by zero
@@ -275,57 +281,16 @@ Despite its advantages, AI poses several ethical and societal challenges. Concer
 
 AI continues to evolve, pushing the boundaries of what machines can achieve. Researchers are working on making AI systems more robust, explainable, and aligned with human values to ensure that AI benefits society as a whole."""
 
-# Kind of summary based on sentence/word importance
-kind_summ = {0: 'just_sentences', 1: 'sentences_n_words'}[1]
-
-# Add or not information from BabelNet
-add_kg_info = {0: 'no', 1: 'yes'}[1]
-# BabelNet importance
+# Define all possible configurations for each parameter
+kind_summ_options = {0: 'just_sentences', 1: 'sentences_n_words'}
+add_kg_info_options = {0: 'no', 1: 'yes'}
+wiki_usage_options = {0: 'weight', 1: 'filter'}
 wiki_weight = 2.5
-# Weight high or filter actively concepts?
-wiki_usage = {0: 'weight', 1: 'filter'}[0]
+counting_options = {0: 'num_sentences', 1: 'percentage_txt'}
 
-# Results based one what?
-counting = {0: 'num_sentences', 1: 'percentage_txt'}[0]
 # Values of interest for the results
 num_sentences = 3
 percentage_txt = 0.2
-
-if add_kg_info == 'yes':
-    t1 = time.time()
-    nltk.download('punkt', quiet=True)
-    nltk.download('stopwords', quiet=True)
-    nltk.download('all', quiet=True)
-    t2 = time.time()
-else:
-    pass
-
-
-# ------------------------------------------------
-# GENERATE SUMMARY ITSELF
-
-# For each approach, generate the summary
-if wiki_usage == 'weight':
-    summary, t = summ_1(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info, wiki_weight)
-else:
-    summary, t = summ_2(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info)
-
-# Print the summary
-print(f"SUMMARY SCHEMA: {counting}, SENTENCES/WORDS: {kind_summ}, ADD KG INFO: {add_kg_info}, KG USAGE APPROACH: {wiki_usage}")
-
-print("Summary:")
-print(summary)
-
-print("Spent time:")
-if add_kg_info == 'yes':
-   print(round(t + t2 - t1, 2))
-else:
-    print(round(t, 2))
-print("-" * 80)
-
-
-# ------------------------------------------------
-# EVALUATION OF THE SUMMARIZATION
 
 # Function to compute ROUGE scores
 def compute_rouge(reference, generated):
@@ -353,40 +318,70 @@ def compute_tfidf_cosine(reference, generated):
     cos_similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
     return cos_similarity[0][0]
 
-# Function to evaluate generated summaries against the original text
-def evaluate_summaries(original_text, generated_summaries):
-    results = []
-    for i, gen in enumerate(generated_summaries):
-        # Comparing each generated summary against the original full text
-        rouge = compute_rouge(original_text, gen)
-        bleu = compute_bleu(original_text, gen)
-        bert = compute_bert_score(original_text, gen)
-        cosine_sim = compute_tfidf_cosine(original_text, gen)
-        
-        # Collecting the metrics in the results list
-        results.append({
-            "Summary Index": i,
-            "ROUGE-1": rouge['rouge1'].fmeasure,
-            "ROUGE-2": rouge['rouge2'].fmeasure,
-            "ROUGE-L": rouge['rougeL'].fmeasure,
-            "BLEU": bleu,
-            "BERT Precision": bert['Precision'],
-            "BERT Recall": bert['Recall'],
-            "BERT F1": bert['F1'],
-            "Cosine Similarity": cosine_sim
-        })
-    
-    # Converting results to a DataFrame for easy visualization
-    return pd.DataFrame(results)
+# DataFrame to hold all evaluation results for each scenario
+all_results = pd.DataFrame()
 
+# Iterate over all possible combinations of options
+for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
+    add_kg_info_options.values(),
+    wiki_usage_options.values(),
+    kind_summ_options.values(),
+    counting_options.values()
+):
+    # Check if we need to add KG info and download resources if required
+    if add_kg_info == 'yes':
+        t1 = time.time()
+        nltk.download('punkt', quiet=True)
+        nltk.download('stopwords', quiet=True)
+        nltk.download('all', quiet=True)
+        t2 = time.time()
+    else:
+        t1, t2 = 0, 0
 
-# Run evaluation
-results_df = evaluate_summaries(text, [summary])
+    # Generate the summary based on current configuration
+    if wiki_usage == 'weight':
+        summary, t = summ_1(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info, wiki_weight)
+    else:
+        summary, t = summ_2(text, num_sentences, percentage_txt, counting, kind_summ, add_kg_info)
 
-# Show all rows in a pandas DataFrame
+    # Run evaluation
+    rouge_scores = compute_rouge(text, summary)
+    bleu_score = compute_bleu(text, summary)
+    bert_scores = compute_bert_score(text, summary)
+    cosine_sim = compute_tfidf_cosine(text, summary)
+
+    # Time calculation
+    spent_time = round(t + (t2 - t1) if add_kg_info == 'yes' else t, 2)
+
+    # Collecting the results into a dictionary for this specific configuration
+    config_results = {
+        "kind_summ": kind_summ,
+        "add_kg_info": add_kg_info,
+        "wiki_usage": wiki_usage,
+        "counting": counting,
+        "ROUGE-1": rouge_scores['rouge1'].fmeasure,
+        "ROUGE-2": rouge_scores['rouge2'].fmeasure,
+        "ROUGE-L": rouge_scores['rougeL'].fmeasure,
+        "BLEU": bleu_score,
+        "BERT Precision": bert_scores['Precision'],
+        "BERT Recall": bert_scores['Recall'],
+        "BERT F1": bert_scores['F1'],
+        "Cosine Similarity": cosine_sim,
+        "Spent Time": spent_time
+    }
+
+    # Add this run's results as a new row in the DataFrame
+    all_results = pd.concat([all_results, pd.DataFrame([config_results])], ignore_index=True)
+
+# Transpose for the final format where each run's results are a column
+results_df = all_results.T
+
+# Save the results to an Excel file
+results_df.to_excel("summarization_results.xlsx")
+
+# Show all rows and columns in pandas DataFrame for full visibility
 pd.set_option('display.max_rows', None)
-# Show all columns in a pandas DataFrame
 pd.set_option('display.max_columns', None)
-# Then print your DataFrame
-print(results_df.T)
 
+# Print final transposed DataFrame
+print(results_df)
