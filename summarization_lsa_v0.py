@@ -25,12 +25,10 @@ from rouge_score import rouge_scorer # type: ignore
 import transformers
 transformers.logging.set_verbosity_error()
 
-# Download necessary NLTK data files
-nltk.download('punkt', quiet=True)
-nltk.download('stopwords', quiet=True)
+
 
 # ----------------------------------------------- #
-# ------------------ LSA ------------------ #
+# --------------------- LSA --------------------- #
 # ----------------------------------------------- #
 
 # -------------------------------------------------
@@ -117,7 +115,6 @@ def summ_1(text,
     tfidf = tfidf_vectorizer.fit_transform(sentences)
 
     # Apply LSA
-
     n_components = min(4, len(sentences))  # Set the number of topics 
     svd_model = TruncatedSVD(n_components=n_components)
     lsa_matrix = svd_model.fit_transform(tfidf)
@@ -210,7 +207,6 @@ def summ_2(text,
     tfidf = tfidf_vectorizer.fit_transform(sentences)
 
     # Apply LSA
-
     n_components = min(4, len(sentences))  # Set the number of topics 
     svd_model = TruncatedSVD(n_components=n_components)
     lsa_matrix = svd_model.fit_transform(tfidf)
@@ -286,10 +282,10 @@ Despite its advantages, AI poses several ethical and societal challenges. Concer
 AI continues to evolve, pushing the boundaries of what machines can achieve. Researchers are working on making AI systems more robust, explainable, and aligned with human values to ensure that AI benefits society as a whole."""
 
 # Define all possible configurations for each parameter
-kind_summ_options = {0: 'just_sentences', 1: 'sentences_n_words'}
 add_kg_info_options = {0: 'no', 1: 'yes'}
 wiki_usage_options = {0: 'weight', 1: 'filter'}
 wiki_weight = 2.5
+kind_summ_options = {0: 'just_sentences', 1: 'sentences_n_words'}
 counting_options = {0: 'num_sentences', 1: 'percentage_txt'}
 
 # Values of interest for the results
@@ -381,7 +377,7 @@ for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
 results_df = all_results.T
 
 # Save the results to an Excel file
-results_df.to_excel("summarization_results.xlsx")
+results_df.to_excel("summarization_results_lsa.xlsx")
 
 # Show all rows and columns in pandas DataFrame for full visibility
 pd.set_option('display.max_rows', None)
