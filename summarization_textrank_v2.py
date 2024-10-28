@@ -315,7 +315,7 @@ def compute_tfidf_cosine(reference, generated):
 all_results = pd.DataFrame()
 
 # Iterate over all possible combinations of options
-for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
+for add_kg_info, wiki_usage, kind_summ, counting in itertools.product(
     add_kg_info_options.values(),
     wiki_usage_options.values(),
     kind_summ_options.values(),
@@ -348,9 +348,9 @@ for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
 
     # Collecting the results into a dictionary for this specific configuration
     config_results = {
-        "kind_summ": kind_summ,
         "add_kg_info": add_kg_info,
         "wiki_usage": wiki_usage,
+        "kind_summ": kind_summ,
         "counting": counting,
         "ROUGE-1": rouge_scores['rouge1'].fmeasure,
         "ROUGE-2": rouge_scores['rouge2'].fmeasure,
@@ -385,15 +385,13 @@ print(results_df)
 
 # Calculate corr between KG weight per sentence and the number of words in each
 new_c1 = np.array(list(c1.values())) / wiki_weight
-correlation  = np.corrcoef(list(new_c1), c2)
+correlation = np.corrcoef(list(new_c1), c2)
 print(correlation)
 
-# Criar o scatter plot
+# Cria o scatter plot
 plt.scatter(new_c1, c2, color='blue', alpha=0.7)
 plt.xlabel("KG given weight")
 plt.ylabel("Number of words")
 plt.title("Relation 'Size - KG importance'")
-
-# Plotar gráfico
 plt.tight_layout()
 plt.show()
