@@ -275,10 +275,10 @@ Despite its advantages, AI poses several ethical and societal challenges. Concer
 AI continues to evolve, pushing the boundaries of what machines can achieve. Researchers are working on making AI systems more robust, explainable, and aligned with human values to ensure that AI benefits society as a whole."""
 
 # Define all possible configurations for each parameter
-kind_summ_options = {0: 'just_sentences', 1: 'sentences_n_words'}
 add_kg_info_options = {0: 'no', 1: 'yes'}
 wiki_usage_options = {0: 'weight', 1: 'filter'}
 wiki_weight = 2.5
+kind_summ_options = {0: 'just_sentences', 1: 'sentences_n_words'}
 counting_options = {0: 'num_sentences', 1: 'percentage_txt'}
 
 # Values of interest for the results
@@ -316,9 +316,9 @@ all_results = pd.DataFrame()
 
 # Iterate over all possible combinations of options
 for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
-    kind_summ_options.values(),
     add_kg_info_options.values(),
     wiki_usage_options.values(),
+    kind_summ_options.values(),
     counting_options.values()
 ):
     # Check if we need to add KG info and download resources if required
@@ -370,7 +370,7 @@ for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
 results_df = all_results.T
 
 # Save the results to an Excel file
-results_df.to_excel("summarization_results.xlsx")
+results_df.to_excel("summarization_textrank_results.xlsx")
 
 # Show all rows and columns in pandas DataFrame for full visibility
 pd.set_option('display.max_rows', None)
