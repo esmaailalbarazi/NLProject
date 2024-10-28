@@ -137,14 +137,13 @@ def summ_1(text,
         for i, concepts in sentence_concepts.items():
             wikidata_score = len(concepts) * wikidata_weight_factor
             wikidata_importance[i] = wikidata_score
-        
+
     # Normalize sentence_scores and wikidata_importance if KG info is included
     if add_wikidata_information == 'yes':
         max_sent_score = max(sentence_scores)
         min_sent_score = min(sentence_scores)
         norm_sent_scores = (sentence_scores - min_sent_score) / (max_sent_score - min_sent_score)
 
-        
         max_wiki_score = max(wikidata_importance.values(), default=1)  # Avoid division by zero
         min_wiki_score = min(wikidata_importance.values(), default=0)
         norm_wiki_scores = {i: (score - min_wiki_score) / (max_wiki_score - min_wiki_score)
@@ -322,7 +321,7 @@ def compute_tfidf_cosine(reference, generated):
 all_results = pd.DataFrame()
 
 # Iterate over all possible combinations of options
-for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
+for add_kg_info, wiki_usage, kind_summ, counting in itertools.product(
     add_kg_info_options.values(),
     wiki_usage_options.values(),
     kind_summ_options.values(),
@@ -355,9 +354,9 @@ for kind_summ, add_kg_info, wiki_usage, counting in itertools.product(
 
     # Collecting the results into a dictionary for this specific configuration
     config_results = {
-        "kind_summ": kind_summ,
         "add_kg_info": add_kg_info,
         "wiki_usage": wiki_usage,
+        "kind_summ": kind_summ,
         "counting": counting,
         "ROUGE-1": rouge_scores['rouge1'].fmeasure,
         "ROUGE-2": rouge_scores['rouge2'].fmeasure,
