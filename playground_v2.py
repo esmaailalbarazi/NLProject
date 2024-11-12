@@ -354,8 +354,10 @@ def summ_1(text,
         # Pass the filtered concepts to get relationships
         extract_concepts = wikidata_entities_relations(filtered_concepts)
 
+        # Get all entities and sort them
         all_entities, sorted_extracted = wikidata_all_entities(extract_concepts)
 
+        # OPCIONAL, É SÓ PARA VER O QUE ESTÁ A PASSAR
         # See all entities ordered by frequency
         entity_counts = Counter(sorted_extracted)
         df = pd.DataFrame(entity_counts.items(), columns=['Entity', 'Frequency'])
@@ -363,9 +365,14 @@ def summ_1(text,
         print("\n")
         print(df_sorted)
 
+        # CONTINUE FROM HERE
+        # Call triples
 
-    # CONTINUE FROM HERE
+        # Call semantic enrichment with ontologies...
 
+
+
+    # END PART
 
     # Calculate a simplified importance measure without querying relationships
     wikidata_importance = {i: 1 for i in sentence_concepts.keys()}  # Default importance
