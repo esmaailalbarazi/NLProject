@@ -510,9 +510,12 @@ def textrank_algorithm_with_kg(text,
     adjusted_ranks = []
     for i, rank in enumerate(ranks):
         # Adjust each sentence's rank based on the number of triples and constant weight
-        adjusted_rank = rank + (sentence_triples_count[i] * kg_weight)
+        adjusted_rank = rank + (sentence_triples_count.get(i, 0) * kg_weight)
         adjusted_ranks.append(adjusted_rank)
-    
+        # Print the adjusted rank for each sentence
+        print(f"Sentence {i} - Rank: {rank:.4f},"
+            f"Rank after adding weighted count of triples: {adjusted_rank:.4f}")
+        
     ### Step 5: Extract top-ranked sentences
     ranked_sentences = [(adjusted_ranks[i], original_sentences[i]) for i in range(len(adjusted_ranks))]
     ranked_sentences = sorted(ranked_sentences, key=lambda x: x[0], reverse=True)
@@ -531,6 +534,20 @@ def textrank_algorithm_with_kg(text,
 
 
 # ------------------------------------------------
+# EVALUATION METRICS
+def evaluate_with_rouge(summary, reference_text):
+    # Initialize the ROUGE scorer
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+    scores = scorer.score(reference_text, summary)
+    
+    # Extract scores for each metric
+    rouge_scores = {
+        "rouge1": scores['rouge1'].fmeasure,
+        "rouge2": scores['rouge2'].fmeasure,
+        "rougeL": scores['rougeL'].fmeasure
+    }
+    return rouge_scores
+
 # SUMMARIZE BY SENTENCE/WORD IMPORTANCE + KG CONCEPTS
 
 # Summarization by "KG weighting" when it is used
@@ -595,8 +612,11 @@ def summarization(text,
         # Call TextRank with no KG information
         summary = textrank_algorithm(text, counting, num_sentences, percentage_txt)
 
+    # ROUGE evaluation
+    rouge_scores = evaluate_with_rouge(summary, text)
+
     final_time = time.time()
-    return summary, (final_time - start_time)
+    return summary, rouge_scores, (final_time - start_time)
 
 
 # ------------------------------------------------
@@ -627,10 +647,13 @@ for add_kg, counting in itertools.product(add_kg_info_options.values(), counting
         t1, t2 = 0, 0
 
     # Generate the summary based on current configuration
-    summary, t = summarization(text, num_sentences, percentage_txt, counting, add_kg)
+    summary, rouge_scores, t = summarization(text, num_sentences, percentage_txt, counting, add_kg)
 
     print(f"{add_kg}, {counting}, {t}s:")
     print(summary, "\n")
+    print(f"ROUGE Scores: {rouge_scores}")
+
+    
 
 
 
