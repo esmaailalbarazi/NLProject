@@ -682,8 +682,8 @@ if __name__ == "__main__":
     test = """Artificial Intelligence (AI) is the field of study that focuses on creating systems capable of performing tasks that typically require human intelligence. These tasks include learning, reasoning, problem solving, perception, and language understanding. AI draws on concepts from several disciplines including computer science, mathematics, linguistics, psychology, and neuroscience to develop algorithms and models that mimic cognitive functions."""
 
     # Loading CNN news and reading for N articles
-    file_path = r"C:\Users\user\Desktop\UC\5º_semestre\NLP\projeto\NLProject\dataset.xlsx"
-    n = 6 # <--------------------------------------------------------- TO CHOICE
+    file_path = r"C:\Users\user\Desktop\UC\5º_semestre\NLP\projeto\NLProject\dataset2.xlsx"
+    n = 0 # <--------------------------------------------------------- TO CHOICE
     df_news = pd.read_excel(file_path).loc[n:n]
     news = df_news['news']
     # Process the 'news' column
@@ -699,14 +699,14 @@ if __name__ == "__main__":
     # Run test of news
     text = {0: 'Test',
             1: 'News'
-            }[0] # <--------------------------------------------------------- TO CHOICE
+            }[1] # <--------------------------------------------------------- TO CHOICE
 
     # Define all possible configurations for each parameter - DON''T USE
     add_kg_info_options = {0: 'No', 1: 'Yes'}
     counting_options = {0: 'Number of sentences', 1: 'Percentage of text'}
 
     # Values of interest for the results
-    num_sentences = 3 # <--------------------------------------------------------- TO CHOICE
+    num_sentences = 2 # <--------------------------------------------------------- TO CHOICE
     percentage_txt = 0.5
     
 
@@ -744,33 +744,46 @@ if __name__ == "__main__":
         # Create new columns for add in CNN original dataset
         df_news['Summary'] = ""
         df_news['Summary KG'] = ""
-        df_news['ROUGE'] = None
-        df_news['ROUGE KG'] = None
-        df_news['Mean ROUGE'] = None
-        df_news['Mean ROUGE KG'] = None
+        df_news['ROUGE highlight'] = None
+        df_news['ROUGE summ'] = None
+        df_news['ROUGE summ KG'] = None
+        df_news['Mean ROUGE highlight'] = None
+        df_news['Mean ROUGE summ'] = None
+        df_news['Mean ROUGE summ KG'] = None
         df_news['Time'] = None
         df_news['Time KG'] = None
         df_news['Ranking 1 KG'] = None
         df_news['Ranking 2 KG'] = None
         # Iterate over each news article
-        for idx, news in enumerate(df_news['news']):
+        for idx, row in df_news.iterrows():
+            # Retrieve individual values for news and highlight
+            highlight_text = row['highlight']
+            news_text = row['news']
+            
             # Standard summary
-            summary, rank_df, rouge_scores, mean_rouge, t = summarization(news, num_sentences, percentage_txt, "Number of sentences", "No")
+            summary, rank_df, rouge_scores, mean_rouge, t = summarization(news_text, num_sentences, percentage_txt, "Number of sentences", "No")
             # KG summary
-            summary_kg, rank_df_kg1, rank_df_kg2, rouge_scores_kg, mean_rouge_kg, t_kg = summarization(news, num_sentences, percentage_txt, "Number of sentences", "Yes")
-            # Add results to the corresponding row in the dataframe
+            summary_kg, rank_df_kg1, rank_df_kg2, rouge_scores_kg, mean_rouge_kg, t_kg = summarization(news_text, num_sentences, percentage_txt, "Number of sentences", "Yes")
+            
+            # Highlight scores (compare highlight and news text)
+            rouge_scores_h, mean_rouge_h = evaluate_with_rouge(highlight_text, news_text)
+            
+            # Add results to the corresponding row in the DataFrame
             df_news.at[idx, 'Summary'] = summary
             df_news.at[idx, 'Summary KG'] = summary_kg
-            df_news.at[idx, 'ROUGE'] = rouge_scores
-            df_news.at[idx, 'ROUGE KG'] = rouge_scores_kg
-            df_news.at[idx, 'Mean ROUGE'] = mean_rouge
-            df_news.at[idx, 'Mean ROUGE KG'] = mean_rouge_kg
+            df_news.at[idx, 'ROUGE highlight'] = rouge_scores_h
+            df_news.at[idx, 'ROUGE summ'] = rouge_scores
+            df_news.at[idx, 'ROUGE summ KG'] = rouge_scores_kg
+            df_news.at[idx, 'Mean ROUGE highlight'] = mean_rouge_h
+            df_news.at[idx, 'Mean ROUGE summ'] = mean_rouge
+            df_news.at[idx, 'Mean ROUGE summ KG'] = mean_rouge_kg
             df_news.at[idx, 'Time'] = round(t, 2)
             df_news.at[idx, 'Time KG'] = round(t_kg, 2)
             df_news.at[idx, 'Ranking 1 KG'] = rank_df_kg1
             df_news.at[idx, 'Ranking 2 KG'] = rank_df_kg2
         # Save the results to an Excel file
-        df_news.to_excel("news_final_summary_results.xlsx", index=False)
+        name = f"news_final_summary_results_{n}.xlsx"
+        df_news.to_excel(name, index=False)
         print("CNN DATA saved to 'news_final_summary_results.xlsx'!")
 
     else:
