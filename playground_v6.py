@@ -106,7 +106,7 @@ def search_wikidata_concepts(keyword,
         except Exception as e:
             print(f"An error occurred: {e}")
             retries += 1
-            time.sleep(3 ** retries)
+            time.sleep(2 ** retries)
     print(f"Failed to fetch concepts for keyword '{keyword}' after {max_retries} retries.")
     return []
 
@@ -264,7 +264,7 @@ def query_multiple_wikidata_entity_relationships(entity_ids,
                 print(f"  - {related_entity_id}: {related_entity_label} - {relation} ({property_id})")
         else:
             print(f"Entity {entity_id} ({entity_label}) has no related entities.")
-        time.sleep(3)  # Wait longer to avoid rate limiting across many entities
+        time.sleep(2)  # Wait longer to avoid rate limiting across many entities
     print("\nResults:")
     print(results)
     return results
@@ -347,7 +347,7 @@ def query_to_generate_triples(concepts):
                     print(f"  - ({entity_label}, {relation}, {related_entity_label})")
             else:
                 print(f"Entity {entity_id} ({entity_label}) has no related entities.")
-            time.sleep(3)  # Respect API rate limits
+            time.sleep(2)  # Respect API rate limits
         # Add the sentence's triples to the dictionary
         triples_per_sentence[sentence_idx] = sentence_triples
     print("\nGenerated Sentence-to-Triples Dictionary:")
@@ -403,7 +403,7 @@ def semantic_enrichment(triples_per_sentence):
                         all_enriched_triples.append(new_triple)
                         print(f"Added synonym relationship: {new_triple}")
             # Delay to respect API limits
-            time.sleep(3)
+            time.sleep(2)
         # Save enriched triples for the current sentence
         enriched_triples_per_sentence[sentence_idx] = enriched_triples
     # Logging the enriched triples
@@ -488,8 +488,7 @@ def textrank_algorithm_with_kg(text,
                                percentage_txt,
                                summary_type,
                                triples_per_sentence,
-                               semantics_per_sentence,
-                               kg_weight=0.1):
+                               semantics_per_sentence):
     print("Executing TextRank + KG")
     # Initialize stop words
     stop_words = set(stopwords.words("english"))
@@ -525,27 +524,44 @@ def textrank_algorithm_with_kg(text,
         return rank
     ranks = pagerank(similarity_matrix)
     
-    ### Step 4: Count the number of triples + enriched triples for each sentence
+    ### Step 4: Count the number of triples and calculate adjusted ranks
     sentence_triples_count = {
-        sentence_idx: len(triples_per_sentence[sentence_idx]) + len(semantics_per_sentence[sentence_idx])
-        for sentence_idx in triples_per_sentence}
-    # Adjust ranks by adding the weighted count of triples
-    adjusted_ranks = []
-    print("Rank after adding weighted count of triples:")
+        sentence_idx: (len(semantics_per_sentence[sentence_idx]), len(triples_per_sentence[sentence_idx]))
+        for sentence_idx in triples_per_sentence
+    }
+    adjusted_ranks_method_1 = []
+    adjusted_ranks_method_2 = []
+    print("Rank after applying both adjustment methods:")
     for i, rank in enumerate(ranks):
-        # Adjust each sentence's rank based on the number of triples and constant weight
-        adjusted_rank = rank + (sentence_triples_count.get(i, 0) * kg_weight)
-        adjusted_ranks.append(adjusted_rank)
+        semantic_count = sentence_triples_count.get(i, (0, 0))[0]
+        common_count = sentence_triples_count.get(i, (0, 0))[1]
+
+        # Avoid division by zero
+        if common_count > 0:
+            # Method 1: ranking * (1 + semantic_triples / common_triples)
+            adjusted_rank_1 = rank * (1 + semantic_count / common_count)
+        else:
+            adjusted_rank_1 = rank  # No adjustment if no common triples
+        # Method 2: ranking * (1 + semantic_triples / (semantic_triples + common_triples))
+        total_triples = semantic_count + common_count
+        if total_triples > 0:
+            adjusted_rank_2 = rank * (1 + semantic_count / total_triples)
+        else:
+            adjusted_rank_2 = rank  # No adjustment if no triples at all
+        adjusted_ranks_method_1.append(adjusted_rank_1)
+        adjusted_ranks_method_2.append(adjusted_rank_2)
         ### PRINT JUST TO CHECK (OPTIONAL) <----------------------------
-        print(f"Sentence {i} - Rank: {rank:.4f} - Adj rank: {adjusted_rank:.4f}")
+        print(f"Sentence {i} - Original Rank: {rank:.4f} - Adj Rank 1: {adjusted_rank_1:.4f} - Adj Rank 2: {adjusted_rank_2:.4f}")
     
-    ### Step 5: Create a DataFrame for ranked sentences with original and adjusted ranks
-    textrank_kg_df = pd.DataFrame({
-        "Original Rank": ranks,
-        "Adjusted Rank": adjusted_ranks,
-        "Sentence": original_sentences
-    })
-    textrank_kg_df.sort_values(by="Adjusted Rank", ascending=False, inplace=True)
+    ### Step 5: Create DataFrames for both methods
+    textrank_kg_df_1 = pd.DataFrame({"Original Rank": ranks,
+                                     "Adjusted Rank (Method 1)": adjusted_ranks_method_1,
+                                     "Adjusted Rank (Method 2)": adjusted_ranks_method_2,
+                                     "Sentence": original_sentences}).sort_values(by="Adjusted Rank (Method 1)", ascending=False)
+    
+    textrank_kg_df_2 = pd.DataFrame({"Original Rank": ranks,
+                                     "Adjusted Rank (Method 2)": adjusted_ranks_method_2,
+                                     "Sentence": original_sentences}).sort_values(by="Adjusted Rank (Method 2)", ascending=False)
     
     ### Step 6: Determine number of sentences for summary based on summary_type
     if summary_type == 'Number of sentences':
@@ -555,9 +571,10 @@ def textrank_algorithm_with_kg(text,
         num_sentences = max(1, min(num_sentences, len(original_sentences)))
     
     ### Step 7: Summary itself
-    summary = " ".join(textrank_kg_df.head(num_sentences)["Sentence"].tolist())
-    # Return both summary and DataFrame
-    return summary, textrank_kg_df
+    summary_method_1 = " ".join(textrank_kg_df_1.head(num_sentences)["Sentence"].tolist())
+    summary_method_2 = " ".join(textrank_kg_df_2.head(num_sentences)["Sentence"].tolist())
+    # Return summaries and both DataFrames
+    return summary_method_1, textrank_kg_df_1, summary_method_2, textrank_kg_df_2
 
 
 # ------------------------------------------------
@@ -638,18 +655,22 @@ def summarization(text,
         print("Enriched triples: ", len(initial_triples) + len(semantic_triples))
         print("\n")
         # Call TextRank with KG information
-        summary, rank_df = textrank_algorithm_with_kg(text, num_sentences, percentage_txt, counting, initial_triples_per_sentence, semantics_per_sentence)
-    
+        summary, rank_df1, _, rank_df2 = textrank_algorithm_with_kg(text, num_sentences, percentage_txt, counting, initial_triples_per_sentence, semantics_per_sentence)
+
+        # ROUGE evaluation
+        rouge_scores, mean_rouge = evaluate_with_rouge(summary, text)
+        final_time = time.time()
+        return summary, rank_df1, rank_df2, rouge_scores, mean_rouge, (final_time - start_time)
+
     else:
         # Call TextRank with no KG information
         summary, rank_df = textrank_algorithm(text, num_sentences, percentage_txt, counting)
+        # ROUGE evaluation
+        rouge_scores, mean_rouge = evaluate_with_rouge(summary, text)
+        final_time = time.time()
+        return summary, rank_df, rouge_scores, mean_rouge, (final_time - start_time)
 
-    # ROUGE evaluation
-    rouge_scores, mean_rouge = evaluate_with_rouge(summary, text)
-
-    final_time = time.time()
-    return summary, rank_df, rouge_scores, mean_rouge, (final_time - start_time)
-
+    
 
 # ------------------------------------------------
 # MAIN RUN AND SELECTING PARAMETERS
@@ -662,8 +683,8 @@ if __name__ == "__main__":
 
     # Loading CNN news and reading for N articles
     file_path = r"C:\Users\user\Desktop\UC\5º_semestre\NLP\projeto\NLProject\dataset.xlsx"
-    n = 1
-    df_news = pd.read_excel(file_path).head(n+1)
+    n = 6 # <--------------------------------------------------------- TO CHOICE
+    df_news = pd.read_excel(file_path).loc[n:n]
     news = df_news['news']
     # Process the 'news' column
     def clean_cnn_articles(article):
@@ -678,35 +699,40 @@ if __name__ == "__main__":
     # Run test of news
     text = {0: 'Test',
             1: 'News'
-            }[1]
+            }[0] # <--------------------------------------------------------- TO CHOICE
 
     # Define all possible configurations for each parameter - DON''T USE
     add_kg_info_options = {0: 'No', 1: 'Yes'}
     counting_options = {0: 'Number of sentences', 1: 'Percentage of text'}
 
     # Values of interest for the results
-    num_sentences = 1
+    num_sentences = 3 # <--------------------------------------------------------- TO CHOICE
     percentage_txt = 0.5
+    
 
 
-
-     # Generate the summary for a test text
+    # Generate the summary for a test text
     if text == 'Test':
+        # Values of interest for the results
         # Prepare a list to collect results
         test_final_results = []
         # Standard summary
         summary, rank_df, rouge_scores, mean_rouge, t = summarization(test, num_sentences, percentage_txt, "Number of sentences", "No")
+
         # KG summary
-        summary_kg, rank_df_kg, rouge_scores_kg, mean_rouge_kg, t_kg = summarization(test, num_sentences, percentage_txt, "Number of sentences", "Yes")
+        summary_kg, rank_df_kg1, rank_df_kg2, rouge_scores_kg, mean_rouge_kg, t_kg = summarization(test, num_sentences, percentage_txt, "Number of sentences", "Yes")
+
         # Store results as a dictionary
         test_final_results.append({"Summary": summary,
-                                    "Summary KG": summary_kg,
-                                    "ROUGE": rouge_scores,
-                                    "ROUGE KG": rouge_scores_kg,
-                                    "Mean ROUGE": mean_rouge,
-                                    "Mean ROUGE KG": mean_rouge_kg,
-                                    "Time": round(t, 2),
-                                    "Time KG": round(t_kg, 2)})
+                                   "Summary KG": summary_kg,
+                                   "ROUGE": rouge_scores,
+                                   "ROUGE KG": rouge_scores_kg,
+                                   "Mean ROUGE": mean_rouge,
+                                   "Mean ROUGE KG": mean_rouge_kg,
+                                   "Time": round(t, 2),
+                                   "Time KG": round(t_kg, 2),
+                                   "Ranking 1 KG": rank_df_kg1,
+                                   "Ranking 2 KG": rank_df_kg2})
         # Convert results to a DataFrame for the test
         final_df = pd.DataFrame(test_final_results)
         # Save the results to an Excel file
@@ -724,12 +750,14 @@ if __name__ == "__main__":
         df_news['Mean ROUGE KG'] = None
         df_news['Time'] = None
         df_news['Time KG'] = None
+        df_news['Ranking 1 KG'] = None
+        df_news['Ranking 2 KG'] = None
         # Iterate over each news article
         for idx, news in enumerate(df_news['news']):
             # Standard summary
             summary, rank_df, rouge_scores, mean_rouge, t = summarization(news, num_sentences, percentage_txt, "Number of sentences", "No")
             # KG summary
-            summary_kg, rank_df_kg, rouge_scores_kg, mean_rouge_kg, t_kg = summarization(news, num_sentences, percentage_txt, "Number of sentences", "Yes")
+            summary_kg, rank_df_kg1, rank_df_kg2, rouge_scores_kg, mean_rouge_kg, t_kg = summarization(news, num_sentences, percentage_txt, "Number of sentences", "Yes")
             # Add results to the corresponding row in the dataframe
             df_news.at[idx, 'Summary'] = summary
             df_news.at[idx, 'Summary KG'] = summary_kg
@@ -739,6 +767,8 @@ if __name__ == "__main__":
             df_news.at[idx, 'Mean ROUGE KG'] = mean_rouge_kg
             df_news.at[idx, 'Time'] = round(t, 2)
             df_news.at[idx, 'Time KG'] = round(t_kg, 2)
+            df_news.at[idx, 'Ranking 1 KG'] = rank_df_kg1
+            df_news.at[idx, 'Ranking 2 KG'] = rank_df_kg2
         # Save the results to an Excel file
         df_news.to_excel("news_final_summary_results.xlsx", index=False)
         print("CNN DATA saved to 'news_final_summary_results.xlsx'!")
