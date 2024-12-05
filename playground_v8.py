@@ -691,15 +691,17 @@ def summarization(text,
         print("Enriched triples: ", len(initial_triples) + len(semantic_triples))
         print("\n")
         # Call TextRank with KG information
-        summary, rank_df1, _, rank_df2 = textrank_algorithm_with_kg(text, num_sentences, percentage_txt, counting, initial_triples_per_sentence, semantics_per_sentence)
+        summary1, rank_df1, summary2, rank_df2 = textrank_algorithm_with_kg(text, num_sentences, percentage_txt, counting, initial_triples_per_sentence, semantics_per_sentence)
 
         # ROUGE evaluation
-        rouge_scores, mean_rouge = evaluate_with_rouge(summary, text)
+        rouge_scores1, mean_rouge1 = evaluate_with_rouge(summary1, text)
+        rouge_scores2, mean_rouge2 = evaluate_with_rouge(summary2, text)
         # BERTScore evaluation
-        P, R, F1 = evaluate_with_bert_score(summary, text)
+        P1, R1, F11 = evaluate_with_bert_score(summary1, text)
+        P2, R2, F12 = evaluate_with_bert_score(summary2, text)
         # Time
         final_time = time.time()
-        return summary, rank_df1, rank_df2, rouge_scores, mean_rouge, P, R, F1, (final_time - start_time)
+        return summary1, summary2, rank_df1, rank_df2, rouge_scores1, mean_rouge1, rouge_scores2, mean_rouge2, P1, R1, F11, P2, R2, F12, (final_time - start_time)
 
     else:
         # Call TextRank with no KG information
@@ -769,9 +771,9 @@ if __name__ == "__main__":
         # Loading CNN news and reading for N articles
         file_path = r"C:\Users\user\Desktop\UC\5º_semestre\NLP\projeto\NLProject\dataset.xlsx"
         final_combined_df = pd.DataFrame()
-        m = 1 # <--------------------------------------------------------- TO CHOICE
+        m = 17 # <--------------------------------------------------------- TO CHOICE
         # Loop through all values of n (from 0 to 16)
-        for n in range(m+1):  # 17 because range is exclusive of the upper bound
+        for n in range(0, 1):
             # Generating line
             df_news = pd.read_excel(file_path).loc[n:n]
             news = df_news['news']
@@ -786,16 +788,20 @@ if __name__ == "__main__":
             df_news['news'] = df_news['news'].apply(clean_cnn_articles)
             # Create new columns for results
             df_news['Summary'] = ""
-            df_news['Summary KG'] = ""
+            df_news['Summary 1 KG'] = ""
+            df_news['Summary 2 KG'] = ""
             df_news['ROUGE highlight'] = None
             df_news['ROUGE summ'] = None
-            df_news['ROUGE summ KG'] = None
+            df_news['ROUGE summ 1 KG'] = None
+            df_news['ROUGE summ 2 KG'] = None
             df_news['Mean ROUGE highlight'] = None
             df_news['Mean ROUGE summ'] = None
-            df_news['Mean ROUGE summ KG'] = None
+            df_news['Mean ROUGE summ 1 KG'] = None
+            df_news['Mean ROUGE summ 2 KG'] = None
             df_news["BERTScore highlight"] = None
             df_news['BERTScore'] = None
-            df_news['BERTScore KG'] = None
+            df_news['BERTScore 1 KG'] = None
+            df_news['BERTScore 2 KG'] = None
             df_news['Time'] = None
             df_news['Time KG'] = None
             df_news['Ranking 1 KG'] = None
@@ -807,33 +813,38 @@ if __name__ == "__main__":
                 # Retrieve individual values for news and highlight
                 highlight_text = row['highlight']
                 news_text = row['news']
-                # Generate summaries and calculate metrics
+                # Generate summaries and calculate metrics - No KG
                 summary, rank_df, rouge_scores, mean_rouge, p, r, f1, t = summarization(news_text, num_sentences, percentage_txt, "Number of sentences", "No")
-                summary_kg, rank_df_kg1, rank_df_kg2, rouge_scores_kg, mean_rouge_kg, p_kg, r_kg, f1_kg, t_kg = summarization(news_text, num_sentences, percentage_txt, "Number of sentences", "Yes")
+                # Generate summaries and calculate metrics - Add KG
+                summary1_kg, summary2_kg, rank_df1_kg, rank_df2_kg, rouge_scores1_kg, mean_rouge1_kg, rouge_scores2_kg, mean_rouge2_kg, p1_kg, r1_kg, f11_kg, p2_kg, r2_kg, f12_kg, t_kg = summarization(news_text, num_sentences, percentage_txt, "Number of sentences", "Yes")
                 # Highlight scores (compare highlight and news text)
                 rouge_scores_h, mean_rouge_h = evaluate_with_rouge(highlight_text, news_text)
                 p_h, r_h, f1_h = evaluate_with_bert_score(highlight_text, news_text)
                 # Add results to the current row in the DataFrame
                 df_news.at[idx, 'Summary'] = summary
-                df_news.at[idx, 'Summary KG'] = summary_kg
+                df_news.at[idx, 'Summary 1 KG'] = summary1_kg
+                df_news.at[idx, 'Summary 2 KG'] = summary2_kg
                 df_news.at[idx, 'ROUGE highlight'] = rouge_scores_h
                 df_news.at[idx, 'ROUGE summ'] = rouge_scores
-                df_news.at[idx, 'ROUGE summ KG'] = rouge_scores_kg
+                df_news.at[idx, 'ROUGE summ 1 KG'] = rouge_scores1_kg
+                df_news.at[idx, 'ROUGE summ 2 KG'] = rouge_scores2_kg
                 df_news.at[idx, 'Mean ROUGE highlight'] = mean_rouge_h
                 df_news.at[idx, 'Mean ROUGE summ'] = mean_rouge
-                df_news.at[idx, 'Mean ROUGE summ KG'] = mean_rouge_kg
+                df_news.at[idx, 'Mean ROUGE summ 1 KG'] = mean_rouge1_kg
+                df_news.at[idx, 'Mean ROUGE summ 2 KG'] = mean_rouge2_kg
                 df_news.at[idx, "BERTScore highlight"] = (p_h, r_h, f1_h)
                 df_news.at[idx, 'BERTScore'] = (p, r, f1)
-                df_news.at[idx, 'BERTScore KG'] = (p_kg, r_kg, f1_kg)
+                df_news.at[idx, 'BERTScore 1 KG'] = (p1_kg, r1_kg, f11_kg)
+                df_news.at[idx, 'BERTScore 2 KG'] = (p2_kg, r2_kg, f12_kg)
                 df_news.at[idx, 'Time'] = round(t, 2)
                 df_news.at[idx, 'Time KG'] = round(t_kg, 2)
-                df_news.at[idx, 'Ranking 1 KG'] = rank_df_kg1
-                df_news.at[idx, 'Ranking 2 KG'] = rank_df_kg2
+                df_news.at[idx, 'Ranking 1 KG'] = rank_df1_kg
+                df_news.at[idx, 'Ranking 2 KG'] = rank_df2_kg
             # Append the current DataFrame to the final combined DataFrame
             final_combined_df = pd.concat([final_combined_df, df_news], ignore_index=True)
         # Save the final combined DataFrame to an Excel file
-        final_combined_df.to_excel("news_final_summary_results_v1.xlsx", index=False)
-        print("FINAL DATA saved to 'news_final_summary_results_v1.xlsx'!")
+        final_combined_df.to_excel("news_final_summary_results_v0_1.xlsx", index=False)
+        print("FINAL DATA saved to 'news_final_summary_results_v0_1.xlsx'!")
 
     else:
         raise ValueError("Invalid test type selected!")
