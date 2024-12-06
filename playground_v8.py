@@ -771,9 +771,9 @@ if __name__ == "__main__":
         # Loading CNN news and reading for N articles
         file_path = r"C:\Users\user\Desktop\UC\5º_semestre\NLP\projeto\NLProject\dataset.xlsx"
         final_combined_df = pd.DataFrame()
-        m = 17 # <--------------------------------------------------------- TO CHOICE
+        m = 30 # <--------------------------------------------------------- TO CHOICE
         # Loop through all values of n (from 0 to 16)
-        for n in range(0, 1):
+        for n in range(m):
             # Generating line
             df_news = pd.read_excel(file_path).loc[n:n]
             news = df_news['news']
@@ -799,13 +799,12 @@ if __name__ == "__main__":
             df_news['Mean ROUGE summ 1 KG'] = None
             df_news['Mean ROUGE summ 2 KG'] = None
             df_news["BERTScore highlight"] = None
-            df_news['BERTScore'] = None
-            df_news['BERTScore 1 KG'] = None
-            df_news['BERTScore 2 KG'] = None
+            df_news['BERTScore summ'] = None
+            df_news['BERTScore summ 1 KG'] = None
+            df_news['BERTScore summ 2 KG'] = None
             df_news['Time'] = None
             df_news['Time KG'] = None
-            df_news['Ranking 1 KG'] = None
-            df_news['Ranking 2 KG'] = None
+            df_news['Rankings KG'] = None
             # Number of sentences = Number os highlight senteces
             num_sentences = int(df_news['count_sentences'][n])
             # Iterate over each news article in the current DataFrame
@@ -838,13 +837,12 @@ if __name__ == "__main__":
                 df_news.at[idx, 'BERTScore 2 KG'] = (p2_kg, r2_kg, f12_kg)
                 df_news.at[idx, 'Time'] = round(t, 2)
                 df_news.at[idx, 'Time KG'] = round(t_kg, 2)
-                df_news.at[idx, 'Ranking 1 KG'] = rank_df1_kg
-                df_news.at[idx, 'Ranking 2 KG'] = rank_df2_kg
+                df_news.at[idx, 'Rankings KG'] = rank_df1_kg
             # Append the current DataFrame to the final combined DataFrame
             final_combined_df = pd.concat([final_combined_df, df_news], ignore_index=True)
         # Save the final combined DataFrame to an Excel file
-        final_combined_df.to_excel("news_final_summary_results_v0_1.xlsx", index=False)
-        print("FINAL DATA saved to 'news_final_summary_results_v0_1.xlsx'!")
+        final_combined_df.to_excel("news_final_summary_results.xlsx", index=False)
+        print("FINAL DATA saved to 'news_final_summary_results.xlsx'!")
 
     else:
         raise ValueError("Invalid test type selected!")
